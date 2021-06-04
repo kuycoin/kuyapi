@@ -1,7 +1,10 @@
 export const TokenSymbols = {
-    "EGG": "EGG",
-    "BNB": "BNB",
-    "BUSD": "BUSD",
-    "USDC": "USDC",
-    "USDT": "USDT",
+    "KUY": "KUY",
+    "KUB": "KUB",
+    "KKUB": "KKUB",
+    "KBTC": "KBTC",
+    "KETH": "KETH",
+    "KUSDT": "KUSDT",
+    "KUSDC": "KUSDC",
+    "KDAI": "KDAI",
 }

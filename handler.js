@@ -4,7 +4,7 @@ import eggABI from "./abi/eggToken.json";
 import BigNumber from "bignumber.js";
 
 const web3 = new Web3(process.env.Provider);
-const contract = new web3.eth.Contract(eggABI, process.env.EggAddress);
+const contract = new web3.eth.Contract(eggABI, process.env.KuyAddress);
 
 export async function getTotalSupply() {
     try {
