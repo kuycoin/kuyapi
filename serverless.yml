@@ -113,6 +113,13 @@ functions:
           path: getAllPair/
           method: get
           cors: true
+  getToken:
+    handler: handler.getToken
+    events:
+      - http:
+          path: getToken/
+          method: get
+          cors: true
           
 
 

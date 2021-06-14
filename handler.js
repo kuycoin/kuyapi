@@ -23,6 +23,7 @@ const KuyFactory = new web3.eth.Contract(KuyFactoryABI, process.env.KuyFactory);
 const FoodCourtFactory = new web3.eth.Contract(FoodCourtFactoryABI, "0xeC9c39E283a7956b3EE22816648824b9DF783283");
 const multi = new web3.eth.Contract(MultiCallAbi, ContractAddresses.multiCall);
 const dater  = new EthDater(web3);
+const trendBlocks = {};
 
 async function multicall(abi, calls) {
     const itf = new Interface(abi)
@@ -33,54 +34,54 @@ async function multicall(abi, calls) {
     return res
 }
 async function getPriceCurrent(address) {
-    return await this.getPriceWrapper(
-        await this.getToken(address)
+    return await getPriceWrapper(
+        await getTokenFx(address)
     );
 }
 
 async function getPriceByBlock(address, block) {
-    return await this.getPriceWrapper(
-        await this.getToken(address),
+    return await getPriceWrapper(
+        await getTokenFx(address),
         block
     );
 }
 
 async function getPriceByDate(address, date) {
-    const { block } = await this.dater.getDate(date);
-    return await this.getPriceWrapper(
-        await this.getToken(address),
+    const { block } = await dater.getDate(date);
+    return await getPriceWrapper(
+        await getTokenFx(address),
         block
     );
 }
 
 async function getPriceTrend(address) {
-    const token = await this.getToken(address);
+    const token = await getTokenFx(address);
     return Object.assign( {}, ...await Promise.all(
-        Object.entries(await this.getTrendBlocks()).map(async i => {
-            return { [i[0]]: await this.getPriceWrapper(token, i[1]) };
+        Object.entries(await getTrendBlocks()).map(async i => {
+            return { [i[0]]: await getPriceWrapper(token, i[1]) };
         })
     ));
 }
 
 async function getPriceWrapper(token, block = 'latest') {
     try {
-        return await this.getPrice(token, block);
+        return await getPricefx(token, block);
     } catch(e) {
         return false;
     }
 }
 
-async function getToken(address) {
+async function getTokenFx(address) {
     const token = { address: address };
-    const tokenContract = new this.web3.eth.Contract(erc20, address);
-    // token.exchange = await this.KuyFactory.methods.getExchange(address).call();
+    const tokenContract = new web3.eth.Contract(erc20, address);
+    // tzzoken.exchange = await KuyFactory.methods.getExchange(address).call();
     token.decimals = await tokenContract.methods.decimals().call();
     return token;
 }
 
 async function getTrendBlocks() {
-    if (Object.keys(this.trendBlocks).length == 0) await this.createTrendBlocks();
-    return this.trendBlocks;
+    if (Object.keys(trendBlocks).length == 0) await createTrendBlocks();
+    return trendBlocks;
 }
 
 async function createTrendBlocks() {
@@ -95,29 +96,33 @@ async function createTrendBlocks() {
     ];
 
     return await Promise.all(
-        dates.map(async date => ({ block: this.trendBlocks[date.period] } = await this.dater.getDate(date.timestamp)))
+        dates.map(async date => ({ block: trendBlocks[date.period] } = await dater.getDate(date.timestamp)))
     );
 }
 
-async function getPrice(token, block) {
-    const tokenContract = new this.web3.eth.Contract(erc20, token.address);
+async function getPricefx(token, block) {
+    const tokenContract = new web3.eth.Contract(erc20, token);
+
+  
+
+    // const reserveETH = BigNumber(
+    //     await web3.eth.getBalance("0x1faeCD43b3e82933E139eb4ceB2AF2d091B8B2aD", block)
+    // ).shiftedBy(-18);
+
+    // const reserveToken = BigNumber(
+    //     await tokenContract.methods.balanceOf("0x2009A60434dc8c8f772c9969d64868bDc2bF17B2").call(block)
+    // ).shiftedBy(
+    //     BigNumber(token.decimals).negated().toNumber()
+    // );
+    const reserveToken = new BigNumber(await KuyCOIN.methods.balanceOf("0x414F20D35Ade4f8ead9eF26F2a982AFb6b4f3EE5").call(block)).shiftedBy(-9);
+    const reserveETH = new BigNumber(await KKUB.methods.balanceOf("0x414F20D35Ade4f8ead9eF26F2a982AFb6b4f3EE5").call(block)).shiftedBy(-18);
 
     const calculations = {
         amount: BigNumber(1),
         full: BigNumber(1000),
         comission: BigNumber(997)
     };
-
-    const reserveETH = BigNumber(
-        await this.web3.eth.getBalance(token.exchange, block)
-    ).shiftedBy(-18);
-
-    const reserveToken = BigNumber(
-        await tokenContract.methods.balanceOf(token.exchange).call(block)
-    ).shiftedBy(
-        BigNumber(token.decimals).negated().toNumber()
-    );
-
+    
     const sell = reserveToken.times(calculations.comission).div(
         reserveETH.times(calculations.full).plus(calculations.amount.times(calculations.comission))
     );
@@ -137,6 +142,18 @@ async function getPrice(token, block) {
         }
     };
 }
+
+
+export async function getToken() {
+    try {
+        const res = await  getPriceTrend("0x2009A60434dc8c8f772c9969d64868bDc2bF17B2");
+        return success(JSON.stringify(res));
+    } catch (e) {
+        return failure(e);
+    }
+}
+
+
 
 export async function getTotalSupply() {
     try {
