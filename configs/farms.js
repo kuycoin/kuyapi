@@ -8,7 +8,7 @@ export const farmsConfig = [
         lpSymbol: 'Kuy LPs (Kuy-LP)',
         lpAddresses: {
             97: '',
-            96: '0x99aB8380aCBfB2CA86d7178D8A622be7BC54F4C8',
+            96: '0x414F20D35Ade4f8ead9eF26F2a982AFb6b4f3EE5',
         },
         tokenSymbol: 'KUY',
         tokenAddresses: {

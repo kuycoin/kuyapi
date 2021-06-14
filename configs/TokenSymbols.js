@@ -7,4 +7,5 @@ export const TokenSymbols = {
     "KUSDT": "KUSDT",
     "KUSDC": "KUSDC",
     "KDAI": "KDAI",
+    "KUBW": "KUBW",
 }

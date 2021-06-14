@@ -15,16 +15,16 @@ const multi = new web3.eth.Contract(MultiCallAbi, ContractAddresses.multiCall);
 export async function getTVL() {
     try {
         const farms = await fetchFarms();
-        const bnbbusdFarm = farms.find(f => f.pid === 2);
-        const bnbPrice = bnbbusdFarm.tokenPriceVsQuote ? new BigNumber(bnbbusdFarm.tokenPriceVsQuote) : ZERO;
+        const kuykub = farms.find(f => f.pid === 0);
+        const price = kuykub.tokenPriceVsQuote ? new BigNumber(kuykub.tokenPriceVsQuote) : ZERO;
 
         let value = new BigNumber(0);
         for (let i = 0; i < farms.length; i++) {
             const farm = farms[i]
             if (farm.lpTotalInQuoteToken) {
                 let val;
-                if (farm.quoteTokenSymbol === TokenSymbols.BNB) {
-                    val = (bnbPrice.times(farm.lpTotalInQuoteToken));
+                if (farm.quoteTokenSymbol === TokenSymbols.KUBW) {
+                    val = (price.times(farm.lpTotalInQuoteToken));
                 } else {
                     val = (farm.lpTotalInQuoteToken);
                 }
@@ -102,7 +102,7 @@ async function fetchFarms() {
             let tokenPriceVsQuote;
             if (farmConfig.isTokenOnly) {
                 tokenAmount = new BigNumber(lpTokenBalanceMC).div(new BigNumber(10).pow(tokenDecimals));
-                if (farmConfig.tokenSymbol === TokenSymbols.BUSD && farmConfig.quoteTokenSymbol === TokenSymbols.BUSD) {
+                if (farmConfig.tokenSymbol === TokenSymbols.KKUB && farmConfig.quoteTokenSymbol === TokenSymbols.KKUB) {
                     tokenPriceVsQuote = new BigNumber(1);
                 } else {
                     tokenPriceVsQuote = new BigNumber(quoteTokenBlanceLP).div(new BigNumber(tokenBalanceLP));

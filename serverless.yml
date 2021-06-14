@@ -22,6 +22,7 @@ org: kuycoin
 
 plugins:
   - serverless-webpack
+  - serverless-offline
 
 custom:
   webpack:
@@ -39,8 +40,8 @@ provider:
   environment:
     Provider: "https://rpc.bitkubchain.io/"
     KuyAddress: "0x2009A60434dc8c8f772c9969d64868bDc2bF17B2"
-    BurnAddress: "0x0000000000000000000000000000000000000000"
-
+    BurnAddress: "0x000000000000000000000000000000000000dead"
+    KuyFactory : "0x63A85Ff29d1653913f83bc1A07A8610db7074D0a"
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -73,6 +74,47 @@ functions:
           path: getTVL
           method: get
           cors: true
+  getKuyPrice:
+    handler: handler.getKuyPrice
+    events:
+      - http:
+          path: getKuyPrice
+          method: get
+          cors: true
+
+  getPrice:
+    handler: handler.getPrice
+    events:
+      - http:
+          path: getPrice/{_address}
+          method: get
+          cors: true
+          request: 
+          parameters: 
+             paths: 
+               _address: true
+
+  getPriceF00DCourt:
+    handler: handler.getPriceF00DCourt
+    events:
+      - http:
+          path: getPriceF00DCourt/{_address}
+          method: get
+          cors: true
+          request: 
+          parameters: 
+             paths: 
+               _address: true
+
+  getAllPair:
+    handler: handler.getAllPair
+    events:
+      - http:
+          path: getAllPair/
+          method: get
+          cors: true
+          
+
 
 # you can add CloudFormation resource templates here
 resources:

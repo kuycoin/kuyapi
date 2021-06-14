@@ -23,4 +23,8 @@ export const TokenAddresses = {
         96: '0x12a5A2f27bc1eA474518f41A829B60b945585c97',
         97: '',
     },
+    KUBW: {
+        96: '0x1faeCD43b3e82933E139eb4ceB2AF2d091B8B2aD',
+        97: '',
+    },
 }
