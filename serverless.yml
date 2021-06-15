@@ -117,9 +117,12 @@ functions:
     handler: handler.getToken
     events:
       - http:
-          path: getToken/
+          path: getTokenSeries/{_address}
           method: get
           cors: true
+          parameters: 
+             paths: 
+               _address: true
           
 
 
