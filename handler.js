@@ -125,7 +125,7 @@ async function getTimeSeries() {
 async function createTimeSeries() {
     const timestmp =  new Date().setHours(new Date().getMinutes() - 1);
     const dates = [
-        { timestamp: timestmp, timestamp: new Date().setHours(new Date().getMinutes() - 1 , ) }
+        { timestamp: timestmp, timestamp: new Date().setHours(new Date().getMinutes() - 1  ) }
     ];
 
     return await Promise.all(
@@ -201,13 +201,56 @@ async function getPricefxV2(token, block) {
     .then(response => response.json())
     .then(data => kubPrice = data.THB_KUB.last);
     const KuyLP = KuyFactory.methods.getPair(token.address,KUBAddress).call(block);
-    // const KuyLP = "0x414F20D35Ade4f8ead9eF26F2a982AFb6b4f3EE5";
-    
-    const kuy = new BigNumber(await KuyCOIN.methods.balanceOf(KuyLP).call(block)).shiftedBy(-9);
-    const kub = new BigNumber(await KKUB.methods.balanceOf(KuyLP).call(block)).shiftedBy(-18);
-    const kubPerPrice = new BigNumber(new BigNumber(kuy).dividedBy(new BigNumber(kub))).shiftedBy(0);
-    const kubPerBath = new BigNumber(kubPerPrice).dividedBy(kubPrice);
-    const price = (1 / kubPerBath);
+    const lpAddress = KuyLP;
+        const calls = [
+            // Balance of token in the LP contract
+            {
+                address: _address,
+                name: 'balanceOf',
+                params: [lpAddress],
+            },
+            // Balance of quote token on LP contract
+            {
+                address: KUBAddress,
+                name: 'balanceOf',
+                params: [lpAddress],
+            },
+            // Total supply of LP tokens
+            {
+                address: lpAddress,
+                name: 'totalSupply',
+            },
+            // Token decimals
+            {
+                address: _address,
+                name: 'decimals',
+            },
+            // Quote token decimals
+            {
+                address: KUBAddress,
+                name: 'decimals',
+            },
+            // token name 
+            {
+                address: _address,
+                name: 'name',
+            },
+        ]
+
+        const [
+            tokenBalanceLP,
+            KUBTokenBalanceLP,
+            lpTotalSupply,
+            tokenDecimals,
+            quoteTokenDecimals,
+            name
+        ] = await multicall(erc20, calls)
+
+         const TokenA = new BigNumber(tokenBalanceLP).shiftedBy(-tokenDecimals);
+         const TokenB = new BigNumber(KUBTokenBalanceLP).shiftedBy(-quoteTokenDecimals);
+         const TokenPerkub = new BigNumber(new BigNumber(TokenA).dividedBy(new BigNumber(TokenB))).shiftedBy(0);
+         const kuyperbath = new BigNumber(TokenPerkub).dividedBy(kubprice);
+         const price = (1 / kuyperbath);
     return {
         sell: {
             name: token.name,
