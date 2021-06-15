@@ -24,15 +24,24 @@ const FoodCourtFactory = new web3.eth.Contract(FoodCourtFactoryABI, "0xeC9c39E28
 const multi = new web3.eth.Contract(MultiCallAbi, ContractAddresses.multiCall);
 const dater  = new EthDater(web3);
 const trendBlocks = {};
+const timeSeries = {};
 
 async function multicall(abi, calls) {
     const itf = new Interface(abi)
     const callData = calls.map((call) => [call.address.toLowerCase(), itf.encodeFunctionData(call.name, call.params)])
     const {returnData} = await multi.methods.aggregate(callData).call()
     const res = returnData.map((call, i) => itf.decodeFunctionResult(calls[i].name, call))
-
     return res
 }
+
+async function multicall(abi, calls,block) {
+    const itf = new Interface(abi)
+    const callData = calls.map((call) => [call.address.toLowerCase(), itf.encodeFunctionData(call.name, call.params)])
+    const {returnData} = await multi.methods.aggregate(callData).call(block)
+    const res = returnData.map((call, i) => itf.decodeFunctionResult(calls[i].name, call))
+    return res
+}
+
 async function getPriceCurrent(address) {
     return await getPriceWrapper(
         await getTokenFx(address)
@@ -54,6 +63,15 @@ async function getPriceByDate(address, date) {
     );
 }
 
+async function getPriceByTimeStamp(address, timestamp) {
+    const { block } = await dater.getDate(date);
+    return await getPriceWrapper(
+        await getTokenFx(address),
+        block
+    );
+}
+
+
 async function getPriceTrend(address) {
     const token = await getTokenFx(address);
     return Object.assign( {}, ...await Promise.all(
@@ -71,12 +89,48 @@ async function getPriceWrapper(token, block = 'latest') {
     }
 }
 
+async function getPriceWrapperV2(token, block = 'latest') {
+    try {
+        return await getPricefxV2(token, block);
+    } catch(e) {
+        return false;
+    }
+}
+
 async function getTokenFx(address) {
     const token = { address: address };
     const tokenContract = new web3.eth.Contract(erc20, address);
     // tzzoken.exchange = await KuyFactory.methods.getExchange(address).call();
     token.decimals = await tokenContract.methods.decimals().call();
+    token.name = await tokenContract.methods.name().call();
     return token;
+}
+
+
+async function getPriceTimeSeries(address) {
+    const token = await getTokenFx(address);
+    return Object.assign( {}, ...await Promise.all(
+        Object.entries(await getTimeSeries()).map(async i => {
+            return { [i[0]]: await getPriceWrapperV2(token, i[1]) };
+        })
+    ));
+}
+
+async function getTimeSeries() {
+    if (Object.keys(timeSeries).length == 0) await createTimeSeries();
+    return timeSeries;
+}
+
+
+async function createTimeSeries() {
+    const timestmp =  new Date().setHours(new Date().getMinutes() - 1);
+    const dates = [
+        { timestamp: timestmp, timestamp: new Date().setHours(new Date().getMinutes() - 1 , ) }
+    ];
+
+    return await Promise.all(
+        dates.map(async date => ({ block: timeSeries[date.timestamp] } = await dater.getDate(date.timestamp)))
+    );
 }
 
 async function getTrendBlocks() {
@@ -102,9 +156,6 @@ async function createTrendBlocks() {
 
 async function getPricefx(token, block) {
     const tokenContract = new web3.eth.Contract(erc20, token);
-
-  
-
     // const reserveETH = BigNumber(
     //     await web3.eth.getBalance("0x1faeCD43b3e82933E139eb4ceB2AF2d091B8B2aD", block)
     // ).shiftedBy(-18);
@@ -144,9 +195,105 @@ async function getPricefx(token, block) {
 }
 
 
-export async function getToken() {
+async function getPricefxV2(token, block) {
+    var kubPrice = "";
+    await fetch('https://api.bitkub.com/api/market/ticker?sym=THB_KUB')
+    .then(response => response.json())
+    .then(data => kubPrice = data.THB_KUB.last);
+    const KuyLP = KuyFactory.methods.getPair(token.address,KUBAddress).call(block);
+    // const KuyLP = "0x414F20D35Ade4f8ead9eF26F2a982AFb6b4f3EE5";
+    
+    const kuy = new BigNumber(await KuyCOIN.methods.balanceOf(KuyLP).call(block)).shiftedBy(-9);
+    const kub = new BigNumber(await KKUB.methods.balanceOf(KuyLP).call(block)).shiftedBy(-18);
+    const kubPerPrice = new BigNumber(new BigNumber(kuy).dividedBy(new BigNumber(kub))).shiftedBy(0);
+    const kubPerBath = new BigNumber(kubPerPrice).dividedBy(kubPrice);
+    const price = (1 / kubPerBath);
+    return {
+        sell: {
+            name: token.name,
+            KUB: kubPrice,
+            token: price
+            
+        },
+        buy: {
+            name: token.name,
+            KUB: kubPrice,
+            token: price
+        }
+    };
+}
+
+
+
+async function getPricePerBlock(address , block){
     try {
-        const res = await  getPriceTrend("0x2009A60434dc8c8f772c9969d64868bDc2bF17B2");
+        const token = await getTokenFx(address);
+        const _address = token.address;
+        var kubprice = "";
+        fetch('https://api.bitkub.com/api/market/ticker?sym=THB_KUB')
+        .then(response => response.json())
+        .then(data => kubprice = data.THB_KUB.last);
+        const getPair =  KuyFactory.methods.getPair(_address,KUBAddress).call(block);
+        const lpAddress = getPair;
+        const calls = [
+            // Balance of token in the LP contract
+            {
+                address: _address,
+                name: 'balanceOf',
+                params: [lpAddress],
+            },
+            // Balance of quote token on LP contract
+            {
+                address: KUBAddress,
+                name: 'balanceOf',
+                params: [lpAddress],
+            },
+            // Total supply of LP tokens
+            {
+                address: lpAddress,
+                name: 'totalSupply',
+            },
+            // Token decimals
+            {
+                address: _address,
+                name: 'decimals',
+            },
+            // Quote token decimals
+            {
+                address: KUBAddress,
+                name: 'decimals',
+            },
+            // token name 
+            {
+                address: _address,
+                name: 'name',
+            },
+        ]
+
+        const [
+            tokenBalanceLP,
+            KUBTokenBalanceLP,
+            lpTotalSupply,
+            tokenDecimals,
+            quoteTokenDecimals,
+            name
+        ] = await multicall(erc20, calls,block)
+
+         const TokenA = new BigNumber(tokenBalanceLP).shiftedBy(-tokenDecimals);
+         const TokenB = new BigNumber(KUBTokenBalanceLP).shiftedBy(-quoteTokenDecimals);
+         const TokenPerkub = new BigNumber(new BigNumber(TokenA).dividedBy(new BigNumber(TokenB))).shiftedBy(0);
+         const kuyperbath = new BigNumber(TokenPerkub).dividedBy(kubprice);
+         const price = (1 / kuyperbath);
+        return success(price.toString()); 
+    } catch (e) {
+        return failure(e);
+    }
+}
+
+export async function getToken(event) {
+    try {
+        const _address = event.pathParameters._address;
+        const res = await  getPriceTimeSeries(_address);
         return success(JSON.stringify(res));
     } catch (e) {
         return failure(e);
